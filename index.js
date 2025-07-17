@@ -7,7 +7,12 @@ const convertRoute = require("./routes/convert");
 const app = express();
 const PORT = 5000;
 
-app.use(cors());
+app.use(
+    cors({
+        origin: "https://alex-toolbox.vercel.app",
+        credentials: true,
+    })
+);
 app.use(fileUpload());
 app.use(express.json());
 
