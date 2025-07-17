@@ -3,7 +3,12 @@ const router = express.Router();
 const { convertTemuExcel } = require("../utils/convertTemu");
 
 router.post("/", async (req, res) => {
+    console.log("📥 Received POST /api/convert");
+    console.log("🗂️ req.files:", req.files);
+    console.log("📝 req.body.form:", req.body.form);
+
     try {
+        console.log("🔥 Incoming /api/convert request");
         // Validate files
         if (!req.files || !req.files.template || !req.files.combine) {
             console.log("Missing files:", req.files);
@@ -19,13 +24,12 @@ router.post("/", async (req, res) => {
         }
 
         let formData;
+
         try {
             formData = JSON.parse(req.body.form);
-        } catch (parseErr) {
-            console.log("Invalid JSON:", req.body.form);
-            return res
-                .status(400)
-                .json({ error: "Invalid JSON in form field." });
+        } catch (parseError) {
+            console.error("❌ JSON parse failed:", parseError);
+            return res.status(400).json({ error: "Invalid form data" });
         }
 
         // Manual field checks
