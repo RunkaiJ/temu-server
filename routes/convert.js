@@ -4,21 +4,31 @@ const { convertTemuExcel } = require("../utils/convertTemu");
 
 router.post("/", async (req, res) => {
     try {
+        // Validate files
         if (!req.files || !req.files.template || !req.files.combine) {
-            return res.status(400).json({ error: "Files are missing." });
+            console.log("Missing files:", req.files);
+            return res
+                .status(400)
+                .json({ error: "Missing template or combine file." });
+        }
+
+        // Validate and parse form
+        if (!req.body.form) {
+            console.log("Missing form data");
+            return res.status(400).json({ error: "Missing form data." });
         }
 
         let formData;
         try {
-            formData =
-                typeof req.body.form === "string"
-                    ? JSON.parse(req.body.form)
-                    : req.body.form;
-        } catch (err) {
-            return res.status(400).json({ error: "Invalid form data format." });
+            formData = JSON.parse(req.body.form);
+        } catch (parseErr) {
+            console.log("Invalid JSON:", req.body.form);
+            return res
+                .status(400)
+                .json({ error: "Invalid JSON in form field." });
         }
 
-        // Manual field validation (adjust as needed)
+        // Manual field checks
         const requiredFields = [
             "date",
             "unladingPort",
