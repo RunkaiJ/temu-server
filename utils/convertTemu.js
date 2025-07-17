@@ -1,5 +1,15 @@
 const xlsx = require("xlsx");
 
+function formatDateMMDDYYYY(dateString) {
+    const date = new Date(dateString);
+    if (isNaN(date)) return "";
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+}
+
+
 async function convertTemuExcel(templateBuffer, combineBuffer, formData) {
     const templateWorkbook = xlsx.read(templateBuffer, { type: "buffer" });
     const combineWorkbook = xlsx.read(combineBuffer, { type: "buffer" });
@@ -104,10 +114,11 @@ async function convertTemuExcel(templateBuffer, combineBuffer, formData) {
         newRow["Location of Goods"] = formData.locationOfGoods || "";
         newRow["Carrier Code"] = formData.carrierCode || "";
         newRow["Voyage Flight No"] = formData.voyageFlightNo || "";
-        newRow["Arrival Date"] = formData.date || "";
-        newRow["Date of Export"] = formData.date || "";
-        newRow.EntryDate = formData.date || "";
-        newRow.ImportDate = formData.date || "";
+        const formattedDate = formatDateMMDDYYYY(formData.date);
+        newRow["Arrival Date"] = formattedDate;
+        newRow["Date of Export"] = formattedDate;
+        newRow.EntryDate = formattedDate;
+        newRow.ImportDate = formattedDate;
         newRow["Airline 3 digit code"] = airlineCode;
         newRow["Master Bill Number"] = masterBillNumber;
         newRow["House AWB"] = formData.houseAWB || "";
