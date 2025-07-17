@@ -8,7 +8,37 @@ router.post("/", async (req, res) => {
             return res.status(400).json({ error: "Files are missing." });
         }
 
-        const formData = JSON.parse(req.body.form);
+        let formData;
+        try {
+            formData =
+                typeof req.body.form === "string"
+                    ? JSON.parse(req.body.form)
+                    : req.body.form;
+        } catch (err) {
+            return res.status(400).json({ error: "Invalid form data format." });
+        }
+
+        // Manual field validation (adjust as needed)
+        const requiredFields = [
+            "date",
+            "unladingPort",
+            "arrivalAirport",
+            "preparerPort",
+            "remotePort",
+            "destinationState",
+            "locationOfGoods",
+            "carrierCode",
+            "voyageFlightNo",
+            "houseAWB",
+        ];
+
+        for (const field of requiredFields) {
+            if (!formData[field]) {
+                return res
+                    .status(400)
+                    .json({ error: `Missing field: ${field}` });
+            }
+        }
 
         const { buffer, airlineCode, masterBillNumber } =
             await convertTemuExcel(
