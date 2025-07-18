@@ -21,7 +21,7 @@ router.post("/", async (req, res) => {
                 formData
             );
 
-        const filename = `${airlineCode}${masterBillNumber} UPLOAD GENERATED.xlsx`;
+        const filename = `${airlineCode}${masterBillNumber} UPLOAD.xlsx`;
 
         res.set({
             "Content-Type":
