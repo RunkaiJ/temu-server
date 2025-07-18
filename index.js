@@ -11,6 +11,7 @@ app.use(
     cors({
         origin: "https://alex-toolbox.vercel.app",
         credentials: true,
+        exposedHeaders: ["Content-Disposition"],
     })
 );
 app.use(fileUpload());
