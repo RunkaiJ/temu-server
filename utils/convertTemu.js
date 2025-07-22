@@ -97,7 +97,8 @@ async function convertTemuExcel(templateBuffer, combineBuffer, formData) {
         newRow.HTS = row[colHTS];
         newRow.HTSQty = row[colQTY];
         const rawValue = parseFloat(row[colSubtotal]) || 0;
-        newRow.HTSValue = rawValue < 0.51 ? 0.51 : rawValue;
+        newRow.HTSValue = rawValue;
+        // rawValue < 0.51 ? 0.51 : rawValue;
         newRow["Manifest Qty Piece count"] = row[colQTY];
 
         newRow.ManufacturerName = row[colManufName];
