@@ -11,10 +11,10 @@ const xlsx = require("xlsx");
 // }
 
 function toMMDDYYYY(iso) {
-  if (!iso) return "";
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(iso)) return iso; // already formatted
-  const [y, m, d] = iso.split("-");
-  return `${m.padStart(2,"0")}/${d.padStart(2,"0")}/${y}`;
+    if (!iso) return "";
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(iso)) return iso; // already formatted
+    const [y, m, d] = iso.split("-");
+    return `${m.padStart(2, "0")}/${d.padStart(2, "0")}/${y}`;
 }
 
 function findCellAfterLabel(rows, label) {
@@ -44,168 +44,223 @@ function parseFromPO(poStr) {
 
 // map Arrival Airport (unlading port code) -> Location of Goods
 const LOCATION_MAP = {
-  "4701": "EAT5", // JFK
-  "2720": "WBH9", // LAX
-  "2801": "W0B3", // SFO
-  "3901": "HBT1", // ORD
-  "5501": "SE04", // DFW
-  "5206": "LEG0", // MIA
-  "1704": "L543", // ATL
-  "0417": "AAN5", // BOS
-  "3029": "WBU6", // SEA
+    4701: "EAT5", // JFK
+    2720: "WBH9", // LAX
+    2801: "W0B3", // SFO
+    3901: "HBT1", // ORD
+    5501: "SE04", // DFW
+    5206: "LEG0", // MIA
+    1704: "L543", // ATL
+    "0417": "AAN5", // BOS
+    3029: "WBU6", // SEA
 };
 
 // These are the ONLY fields you said must be hardcoded
 const HARDCODE = {
-  EntryType: "01",
-  ForwardingID: "2568210",
-  ConsigneeId: "2567704",
-  RelatedParties: "Y",
-  "Mode of Transport": "40",
-  SellingName: "August Amber HK Limited",
-  SellingStreetAddress:
-    "Unit 417, 4/F Lippo Ctr Tower Two, No.89 Queensway, Admiralty, Hong Kong",
-  SellingCity: "HongKong",
-  SellingPostalCode: "999077",
-  SellingCountry: "HK",
-  Unit: "PCS",
-  "Preparer Port": "4701", // if this is different, change here
+    EntryType: "01",
+    ForwardingID: "2568210",
+    ConsigneeId: "2567704",
+    RelatedParties: "Y",
+    "Mode of Transport": "40",
+    SellingName: "August Amber HK Limited",
+    SellingStreetAddress:
+        "Unit 417, 4/F Lippo Ctr Tower Two, No.89 Queensway, Admiralty, Hong Kong",
+    SellingCity: "HongKong",
+    SellingPostalCode: "999077",
+    SellingCountry: "HK",
+    Unit: "PCS",
+    "Preparer Port": "4701", // if this is different, change here
 };
+
+// ------------------ ManufacturerCode map ------------------
+const RAW_MANUF_CODES = [
+    ["GUANGZHOUPEISHANFUZHUANGGONGYINGLIANGUANICO.LTD", "CNPEISHA2263GUA"],
+    ["Wenzhoushensengongju Co., Ltd.", "CNSHESENWEN"],
+    ["GanZhouPanHong Technology Co., LTD", "CNGANTEC1026GAN"],
+    ["Wenzhouyihewanjuzhizao Co., Ltd.", "CNWENCO497WEN"],
+    ["Jinhua Jindong District Liju E-commerce Firm", "CNJINJIN5547JIN"],
+    ["GUANGXIPINGNANXIANYUHANKEJI CO..LTD", "CNGUACOL2202GUI"],
+    ["SHENZHEN BEAUTIFUL STORY TRADING CO., LTD.", "CNSHEBEA3241SHE"],
+    ["BANANA TOOTH CLOTHING CO.LTD", "CNBANTOO463GUA"],
+    ["SHENZHENJIECHANGSHENGINDUSTRIALCO..LTD", "CNSHE683SHE"],
+    ["SHENZHENTUOWEIDIANZISHANGWUCO.LTD.", "CNSHE201SHE"],
+    ["Wenzhouheshengsujiao Co., Ltd.", "CNHESSUJWEN"],
+    ["Wenzhouchangchuangshangmao Co., Ltd.", "CNWENZHOWEN"],
+    ["FOSHANBEISHIYUFUSHI CO., LTD.", "CNFOSOLT1090FOS"],
+    ["SHANDONGSIBANGGONGJU CO.LTD", "CNXINKAI6543HUL"],
+    ["WENZHOUFEIMUCLOTHINGCO.LTD", "CNWENZHOWEN"],
+    ["ZHENGZHOUAMIERMAOYI CO.LTD", "CNSHEPHO6SHE"],
+    ["PUJIANGXIANFULIUMANMAOYICO.LTD.", "CNLANSEA2236HUL"],
+    ["Wenzhoushimikaixieye Co., Ltd.", "CNWENZHOWEN"],
+    ["rizhaozhulongfangzhiyouxiangongsi", "CNSHEPHO6SHE"],
+    ["YIWU XINMAN JEWELRY CO. LTD", "CNBAOCHE6BAO"],
+    ["GanZhouPanHongTechnology", "CNBANTOO463GUA"],
+    ["LINZHOUJINPENGSHANGMAO CO..LTD.", "CNJINJIN5547JIN"],
+    ["NO.1177,BINHAI, LONGWAN, WENZHOU.", "CNWENZHOWEN"],
+    ["XINYUSHIXIANNVHUQUQIANHEBAIHUIZHIXIECHANG", "CNWENCO497WEN"],
+    ["Wenzhoushifengyiwujinzhipin Co., Ltd.", "CNWENZHOWEN"],
+    ["XINGCHENGHUIMEICLOTHINGMANUFACTURINGFACTORY", "CNJINJIN5547JIN"],
+    ["FOSHANSHIMMUPINGFUSHI O..LTD.", "CNFOSOLT1090FOS"],
+    ["Haomiao.electronic.commerce co.,ltd", "CNPEISHA2263GUA"],
+    ["ZHONGQINMAOYIGUANGZHOU CO..LTD", "CNBAOCHE6BAO"],
+    ["GUANGZHOUSHILINGLINGQIKEJIFAZHANCO.LTD.", "CNJINJIN5547JIN"],
+    ["NO.5, PETROLEUM ROAD", "CNBAOCHE6BAO"],
+];
+
+// Make lookup resilient to case/punctuation/whitespace
+const keyName = (s = "") =>
+    s
+        .toString()
+        .replace(/[^a-z0-9]/gi, "")
+        .toLowerCase();
+
+const MANUF_CODE_MAP = RAW_MANUF_CODES.reduce((acc, [name, code]) => {
+    acc[keyName(name)] = code;
+    return acc;
+}, {});
+
+function getManufacturerCode(name) {
+    return MANUF_CODE_MAP[keyName(name)] || "";
+}
 
 // Header order copied from your template (must match EXACTLY):
 const HEADERS = [
-  "EntryNo",
-  "EntryType",
-  "GroupIdentifier",
-  "ForwardingID",
-  "ConsigneeId",
-  "RelatedParties",
-  "DescOfMerchandise",
-  "HTS",
-  "HTSValue",
-  "UnladingPort",
-  "EntryDate",
-  "ImportDate",
-  "Mode of Transport",
-  "ManufacturerCode",
-  "ManufacturerName",
-  "ManufacturerStreetAddress",
-  "ManufacturerCity",
-  "ManufacturerCountry",
-  "ManufacturerPostalCode",
-  "ManufacturerProvince",
-  "SellingMID",
-  "SellingName",
-  "SellingStreetAddress",
-  "SellingCity",
-  "SellingState",
-  "SellingPostalCode",
-  "SellingCountry",
-  "InvoiceNumber",
-  "HTSQty",
-  "HTSQty2",
-  "HTS-1",
-  "HTS-2",
-  "HTS-3",
-  "Airline 3 digit code",
-  "Master Bill Number",
-  "House AWB",
-  "Manifest Qty Piece count",
-  "Unit",
-  "Description",
-  "Date of Export",
-  "Country Of Origin",
-  "Country of Export",
-  "Arrival Date",
-  "Location of Goods",
-  "Carrier Code",
-  "Voyage Flight No",
-  "Arrival Airport",
-  "Preparer Port",
-  "Remote Port",
-  "STATE OF DESTINATION",
-  "SteelCountryOfMeltAndPour",
-  "SteelCountryOfMeltAndPourAppCode",
-  "PrimaryAluminumCountryOfSmelt",
-  "PrimaryAluminumCountryOfSmeltAppCode",
-  "SecondaryAluminumCountryOfSmelt",
-  "SecondaryAluminumCountryOfSmeltAppCode",
-  "AluminumCountryOfCastCode",
-  "FDAPRODUCTCODE",
-  "FDAPROGRAMCODE",
-  "FDAPROCESSINGCODE",
-  "FDAINTENDEDUSECODE",
-  "FDABRANDNAME",
-  "FDAARRIVALTIME",
-  "FDANAME",
-  "FDAADDRESS",
-  "FDACITY",
-  "FDACOUNTRY",
-  "FDAREGISTRATIONNUMBERTYPE",
-  "FDAREGISTRATIONNUMBER",
-  "VESSELNAMEORRAILCARNO",
-  "COMPLIANCECODE1",
-  "COMPLIANCECODE1VALUE",
-  "COMPLIANCECODE2",
-  "COMPLIANCECODE2VALUE",
-  "COMPLIANCECODE3",
-  "COMPLIANCECODE3VALUE",
-  "COMPLIANCECODE4",
-  "COMPLIANCECODE4VALUE",
-  "LACEYDECLARATIONSIGNEDDATE",
-  "LACEYLINEVALUE",
-  "LACEYENTITYROLECODE",
-  "LACEYENTITYNAME",
-  "LACEYENTITYEMAIL",
-  "LACEYENTITYPHONE",
-  "LACEYENTITYNAME-1",
-  "LACEYENTITYEMAIL-1",
-  "LACEYENTITYPHONE-1",
-  "LACEYACTIVEINGREDIENT",
-  "LACEYNAMEOFELEMENT",
-  "LACEYQUANTITYOFELEMENT",
-  "LACEYUNITOFMEASURE",
-  "LACEYPERCENTOFELEMENT",
-  "LACEYGENUSNAME",
-  "LACEYSPECIESNAME",
-  "LACEYSUBSPECIESNAME",
-  "LACEYSPECIESCODE",
-  "LACEYDESCRIPTIONCODE",
-  "LACEYSOURCETYPECODE",
-  "LACEYCOUNTRYCODE",
-  "LACEYPRODUCTCOMPONENT-1",
-  "LACEYACTIVEINGREDIENT-1",
-  "LACEYNAMEOFELEMENT-1",
-  "LACEYQUANTITYOFELEMENT-1",
-  "LACEYUNITOFMEASURE-1",
-  "LACEYPERCENTOFELEMENT-1",
-  "LACEYGENUSNAME-1",
-  "LACEYSPECIESNAME-1",
-  "LACEYSUBSPECIESNAME-1",
-  "LACEYSPECIESCODE-1",
-  "LACEYDESCRIPTIONCODE-1",
-  "LACEYSOURCETYPECODE-1",
-  "LACEYCOUNTRYCODE-1",
-  "LACEYGEOGRAPHICLOCATION",
-  "LACEYPROCESSINGSTARTDATE",
-  "LACEYPROCESSINGTYPECODE",
-  "LACEYPROCESSINGDESCRIPTION",
-  "LACEYCONTAINERNUMBER",
-  "LACEYCONTAINERNUMBER-1",
-  "LACEYLICENSETYPE",
-  "LACEYTRANSACTIONTYPE",
-  "LACEYLICENSENUMBER",
-  "LACEYLPCODATETYPE",
-  "LACEYLPCODATE",
-  "LACEYLICENSETYPE-1",
-  "LACEYTRANSACTIONTYPE-1",
-  "LACEYLICENSENUMBER-1",
-  "LACEYLPCODATETYPE-1",
-  "LACEYLPCODATE-1",
+    "EntryNo",
+    "EntryType",
+    "GroupIdentifier",
+    "ForwardingID",
+    "ConsigneeId",
+    "RelatedParties",
+    "DescOfMerchandise",
+    "HTS",
+    "HTSValue",
+    "UnladingPort",
+    "EntryDate",
+    "ImportDate",
+    "Mode of Transport",
+    "ManufacturerCode",
+    "ManufacturerName",
+    "ManufacturerStreetAddress",
+    "ManufacturerCity",
+    "ManufacturerCountry",
+    "ManufacturerPostalCode",
+    "ManufacturerProvince",
+    "SellingMID",
+    "SellingName",
+    "SellingStreetAddress",
+    "SellingCity",
+    "SellingState",
+    "SellingPostalCode",
+    "SellingCountry",
+    "InvoiceNumber",
+    "HTSQty",
+    "HTSQty2",
+    "HTS-1",
+    "HTS-2",
+    "HTS-3",
+    "Airline 3 digit code",
+    "Master Bill Number",
+    "House AWB",
+    "Manifest Qty Piece count",
+    "Unit",
+    "Description",
+    "Date of Export",
+    "Country Of Origin",
+    "Country of Export",
+    "Arrival Date",
+    "Location of Goods",
+    "Carrier Code",
+    "Voyage Flight No",
+    "Arrival Airport",
+    "Preparer Port",
+    "Remote Port",
+    "STATE OF DESTINATION",
+    "SteelCountryOfMeltAndPour",
+    "SteelCountryOfMeltAndPourAppCode",
+    "PrimaryAluminumCountryOfSmelt",
+    "PrimaryAluminumCountryOfSmeltAppCode",
+    "SecondaryAluminumCountryOfSmelt",
+    "SecondaryAluminumCountryOfSmeltAppCode",
+    "AluminumCountryOfCastCode",
+    "FDAPRODUCTCODE",
+    "FDAPROGRAMCODE",
+    "FDAPROCESSINGCODE",
+    "FDAINTENDEDUSECODE",
+    "FDABRANDNAME",
+    "FDAARRIVALTIME",
+    "FDANAME",
+    "FDAADDRESS",
+    "FDACITY",
+    "FDACOUNTRY",
+    "FDAREGISTRATIONNUMBERTYPE",
+    "FDAREGISTRATIONNUMBER",
+    "VESSELNAMEORRAILCARNO",
+    "COMPLIANCECODE1",
+    "COMPLIANCECODE1VALUE",
+    "COMPLIANCECODE2",
+    "COMPLIANCECODE2VALUE",
+    "COMPLIANCECODE3",
+    "COMPLIANCECODE3VALUE",
+    "COMPLIANCECODE4",
+    "COMPLIANCECODE4VALUE",
+    "LACEYDECLARATIONSIGNEDDATE",
+    "LACEYLINEVALUE",
+    "LACEYENTITYROLECODE",
+    "LACEYENTITYNAME",
+    "LACEYENTITYEMAIL",
+    "LACEYENTITYPHONE",
+    "LACEYENTITYNAME-1",
+    "LACEYENTITYEMAIL-1",
+    "LACEYENTITYPHONE-1",
+    "LACEYACTIVEINGREDIENT",
+    "LACEYNAMEOFELEMENT",
+    "LACEYQUANTITYOFELEMENT",
+    "LACEYUNITOFMEASURE",
+    "LACEYPERCENTOFELEMENT",
+    "LACEYGENUSNAME",
+    "LACEYSPECIESNAME",
+    "LACEYSUBSPECIESNAME",
+    "LACEYSPECIESCODE",
+    "LACEYDESCRIPTIONCODE",
+    "LACEYSOURCETYPECODE",
+    "LACEYCOUNTRYCODE",
+    "LACEYPRODUCTCOMPONENT-1",
+    "LACEYACTIVEINGREDIENT-1",
+    "LACEYNAMEOFELEMENT-1",
+    "LACEYQUANTITYOFELEMENT-1",
+    "LACEYUNITOFMEASURE-1",
+    "LACEYPERCENTOFELEMENT-1",
+    "LACEYGENUSNAME-1",
+    "LACEYSPECIESNAME-1",
+    "LACEYSUBSPECIESNAME-1",
+    "LACEYSPECIESCODE-1",
+    "LACEYDESCRIPTIONCODE-1",
+    "LACEYSOURCETYPECODE-1",
+    "LACEYCOUNTRYCODE-1",
+    "LACEYGEOGRAPHICLOCATION",
+    "LACEYPROCESSINGSTARTDATE",
+    "LACEYPROCESSINGTYPECODE",
+    "LACEYPROCESSINGDESCRIPTION",
+    "LACEYCONTAINERNUMBER",
+    "LACEYCONTAINERNUMBER-1",
+    "LACEYLICENSETYPE",
+    "LACEYTRANSACTIONTYPE",
+    "LACEYLICENSENUMBER",
+    "LACEYLPCODATETYPE",
+    "LACEYLPCODATE",
+    "LACEYLICENSETYPE-1",
+    "LACEYTRANSACTIONTYPE-1",
+    "LACEYLICENSENUMBER-1",
+    "LACEYLPCODATETYPE-1",
+    "LACEYLPCODATE-1",
 ];
 
 function normalize(str) {
-  return str?.toString().replace(/\u00A0/g, " ").trim().toLowerCase();
+    return str
+        ?.toString()
+        .replace(/\u00A0/g, " ")
+        .trim()
+        .toLowerCase();
 }
 
 async function convertTemuExcel(combineBuffer, formData) {
@@ -255,7 +310,7 @@ async function convertTemuExcel(combineBuffer, formData) {
         airlineCode = parsed.airlineCode || "";
         masterBillNumber = parsed.masterBillNumber || "";
     }
-    
+
     //   const formattedDate = formatDateMMDDYYYY(formData.date);
     const formattedDate = toMMDDYYYY(formData.date);
     const portCode = (formData.portCode || "").trim();
@@ -287,12 +342,27 @@ async function convertTemuExcel(combineBuffer, formData) {
 
         newRow.InvoiceNumber = invoiceNumber;
 
-        newRow.ManufacturerName = r[colManufName];
-        newRow.ManufacturerStreetAddress = r[colManufAddr];
-        newRow.ManufacturerCity = r[colManufCity];
-        newRow.ManufacturerCountry = r[colManufCountry];
-        newRow.ManufacturerPostalCode = r[colManufPostal];
-        newRow.ManufacturerProvince = "";
+        const manufNameRaw = r[colManufName];
+
+        // Try to match a code
+        const matchedCode = getManufacturerCode(manufNameRaw);
+
+        if (matchedCode) {
+            // Only fill ManufacturerCode, blank the rest
+            newRow.ManufacturerCode = matchedCode;
+            newRow.ManufacturerName = "";
+            newRow.ManufacturerStreetAddress = "";
+            newRow.ManufacturerCity = "";
+            newRow.ManufacturerCountry = "";
+            newRow.ManufacturerPostalCode = "";
+        } else {
+            // Original behavior
+            newRow.ManufacturerName = manufNameRaw;
+            newRow.ManufacturerStreetAddress = r[colManufAddr];
+            newRow.ManufacturerCity = r[colManufCity];
+            newRow.ManufacturerCountry = r[colManufCountry];
+            newRow.ManufacturerPostalCode = r[colManufPostal];
+        }
 
         newRow["Airline 3 digit code"] = airlineCode;
         newRow["Master Bill Number"] = masterBillNumber;
