@@ -4,7 +4,7 @@ const fileUpload = require("express-fileupload");
 const convertRoute = require("./routes/convert");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = 5000;
 
 app.use(
     cors({
@@ -13,10 +13,11 @@ app.use(
         exposedHeaders: ["Content-Disposition"],
     })
 );
+app.options("*", cors());
 app.use(fileUpload());
 
 app.use("/api/convert", convertRoute);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
