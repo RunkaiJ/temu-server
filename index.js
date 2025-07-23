@@ -7,10 +7,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(
-  cors({
-    origin: "*",
-    exposedHeaders: ["Content-Disposition"],
-  })
+    cors({
+        origin: "https://alex-toolbox.vercel.app",
+        credentials: true,
+        exposedHeaders: ["Content-Disposition"],
+    })
 );
 app.use(fileUpload());
 
