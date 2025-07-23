@@ -13,7 +13,7 @@ app.use(
         exposedHeaders: ["Content-Disposition"],
     })
 );
-app.options("*", cors());
+
 app.use(fileUpload());
 
 app.use("/api/convert", convertRoute);
