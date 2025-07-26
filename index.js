@@ -8,7 +8,7 @@ const PORT = 5000;
 
 app.use(
     cors({
-        origin: "https://alex-toolbox.vercel.app",
+        origin: ["https://alex-toolbox.vercel.app", "http://localhost:5173"],
         credentials: true,
         exposedHeaders: ["Content-Disposition"],
     })

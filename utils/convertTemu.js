@@ -1,61 +1,6 @@
 const xlsx = require("xlsx");
 
-// ------------------ helpers ------------------
-// function formatDateMMDDYYYY(dateString) {
-//   const d = new Date(dateString);
-//   if (isNaN(d)) return "";
-//   const mm = String(d.getMonth() + 1).padStart(2, "0");
-//   const dd = String(d.getDate()).padStart(2, "0");
-//   const yyyy = d.getFullYear();
-//   return `${mm}/${dd}/${yyyy}`;
-// }
-
-function toMMDDYYYY(iso) {
-    if (!iso) return "";
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(iso)) return iso; // already formatted
-    const [y, m, d] = iso.split("-");
-    return `${m.padStart(2, "0")}/${d.padStart(2, "0")}/${y}`;
-}
-
-function findCellAfterLabel(rows, label) {
-    const needle = label.toLowerCase();
-    for (const row of rows) {
-        const idx = row.findIndex(
-            (c) => c && c.toString().toLowerCase().includes(needle)
-        );
-        if (idx !== -1 && row[idx + 1]) {
-            return row[idx + 1].toString().trim();
-        }
-    }
-    return "";
-}
-
-function parseFromBL(blStr) {
-    // "272-74824400"  -> ["272", "74824400"]
-    const m = blStr.match(/(\d{3})-([0-9]+)/);
-    return m ? { airlineCode: m[1], masterBillNumber: m[2] } : {};
-}
-
-function parseFromPO(poStr) {
-    // "_272-74824400_..." -> ["272","74824400"]
-    const m = poStr.match(/_(\d+)-(\d+)_/);
-    return m ? { airlineCode: m[1], masterBillNumber: m[2] } : {};
-}
-
-// map Arrival Airport (unlading port code) -> Location of Goods
-const LOCATION_MAP = {
-    4701: "EAT5", // JFK
-    2720: "WBH9", // LAX
-    2801: "W0B3", // SFO
-    3901: "HBT1", // ORD
-    5501: "SE04", // DFW
-    5206: "LEG0", // MIA
-    1704: "L543", // ATL
-    "0417": "AAN5", // BOS
-    3029: "WBU6", // SEA
-};
-
-// These are the ONLY fields you said must be hardcoded
+// ------------------ Hardcoded Defaults ------------------
 const HARDCODE = {
     EntryType: "01",
     ForwardingID: "2568210",
@@ -66,13 +11,26 @@ const HARDCODE = {
     SellingStreetAddress:
         "Unit 417, 4/F Lippo Ctr Tower Two, No.89 Queensway, Admiralty, Hong Kong",
     SellingCity: "HongKong",
-    SellingPostalCode: "999077",
+    SellingPostalCode: "",
     SellingCountry: "HK",
     Unit: "PCS",
-    "Preparer Port": "4701", // if this is different, change here
+    "Preparer Port": "4701",
 };
 
-// ------------------ ManufacturerCode map ------------------
+// ------------------ Location Mapping ------------------
+const LOCATION_MAP = {
+    4701: "EAT5",
+    2720: "WBH9",
+    2801: "W0B3",
+    3901: "HBT1",
+    5501: "SE04",
+    5206: "LEG0",
+    1704: "L543",
+    "0417": "AAN5",
+    3029: "WBU6",
+};
+
+// ------------------ Manufacturer Code Mapping ------------------
 const RAW_MANUF_CODES = [
     ["GUANGZHOUPEISHANFUZHUANGGONGYINGLIANGUANICO.LTD", "CNPEISHA2263GUA"],
     ["Wenzhoushensengongju Co., Ltd.", "CNSHESENWEN"],
@@ -84,7 +42,7 @@ const RAW_MANUF_CODES = [
     ["BANANA TOOTH CLOTHING CO.LTD", "CNBANTOO463GUA"],
     ["SHENZHENJIECHANGSHENGINDUSTRIALCO..LTD", "CNSHE683SHE"],
     ["SHENZHENTUOWEIDIANZISHANGWUCO.LTD.", "CNSHE201SHE"],
-    ["Wenzhouheshengsujiao Co., Ltd.", "CNHESSUJWEN"],
+    ["Wenzhousheshengsujiao Co., Ltd.", "CNHESSUJWEN"],
     ["Wenzhouchangchuangshangmao Co., Ltd.", "CNWENZHOWEN"],
     ["FOSHANBEISHIYUFUSHI CO., LTD.", "CNFOSOLT1090FOS"],
     ["SHANDONGSIBANGGONGJU CO.LTD", "CNXINKAI6543HUL"],
@@ -107,7 +65,6 @@ const RAW_MANUF_CODES = [
     ["NO.5, PETROLEUM ROAD", "CNBAOCHE6BAO"],
 ];
 
-// Make lookup resilient to case/punctuation/whitespace
 const keyName = (s = "") =>
     s
         .toString()
@@ -255,7 +212,15 @@ const HEADERS = [
     "LACEYLPCODATE-1",
 ];
 
-function normalize(str) {
+// ------------------ Helpers ------------------
+function toMMDDYYYY(iso) {
+    if (!iso) return "";
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(iso)) return iso;
+    const [y, m, d] = iso.split("-");
+    return `${m.padStart(2, "0")}/${d.padStart(2, "0")}/${y}`;
+}
+
+function normalizeHeader(str) {
     return str
         ?.toString()
         .replace(/\u00A0/g, " ")
@@ -263,145 +228,119 @@ function normalize(str) {
         .toLowerCase();
 }
 
-async function convertTemuExcel(combineBuffer, formData) {
-    const combineWb = xlsx.read(combineBuffer, { type: "buffer" });
-    const combineSheet = combineWb.Sheets[combineWb.SheetNames[0]];
-    const combineRaw = xlsx.utils.sheet_to_json(combineSheet, {
-        header: 1,
-        defval: "",
-    });
+// ------------------ Main Conversion ------------------
+async function convertTemuExcel(manifestBuffer, formData) {
+    // Read manifest file
+    const wb = xlsx.read(manifestBuffer, { type: "buffer" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const raw = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-    // Combine header row (index 9) & data rows
-    const headers = combineRaw[9];
-    const itemRows = combineRaw.slice(10).filter((r) => r[2] && r[3]);
-
-    const getColumnIndex = (name) =>
-        headers.findIndex((h) => normalize(h) === normalize(name));
-
-    const colHTS = getColumnIndex("HTS Code");
-    const colQTY = getColumnIndex("QTY");
-    const colSubtotal = getColumnIndex("Subtotal (USD)");
-    const colManufName = getColumnIndex("Manufacturer Name");
-    const colManufAddr = getColumnIndex("Manufacturer Address");
-    const colManufCity = getColumnIndex("Manufacturer City");
-    const colManufCountry = getColumnIndex("Manufacturer Country");
-    const colManufPostal = getColumnIndex("Manufacturer Address Postal Code");
-    const colCountryOrigin = getColumnIndex("Country of Origin");
-    const colCommodity = getColumnIndex("commodity");
-
-    // Invoice number (search top area)
-    let invoiceNumber = "";
-    for (const row of combineRaw) {
-        const idx = row.findIndex(
-            (c) => c && c.toString().toLowerCase().includes("invoice number")
-        );
-        if (idx !== -1 && row[idx + 1]) {
-            invoiceNumber = row[idx + 1].toString().trim();
-            break;
-        }
+    // Find header row by "tracking_number"
+    const headerRowIndex = raw.findIndex((row) =>
+        row.some(
+            (c) => c && c.toString().toLowerCase().trim() === "tracking_number"
+        )
+    );
+    if (headerRowIndex < 0) {
+        throw new Error("Header row with 'tracking_number' not found");
     }
 
-    // Get airlineCode and masterBillNumber from "PO No" line
-    let airlineCode = "";
-    let masterBillNumber = "";
-    const blVal = findCellAfterLabel(combineRaw, "b/l no");
-    if (blVal) {
-        const parsed = parseFromBL(blVal);
-        airlineCode = parsed.airlineCode || "";
-        masterBillNumber = parsed.masterBillNumber || "";
-    }
+    const headers = raw[headerRowIndex];
+    const dataRows = raw
+        .slice(headerRowIndex + 1)
+        .filter((r) => r[headers.indexOf("description")]);
 
-    //   const formattedDate = formatDateMMDDYYYY(formData.date);
-    const formattedDate = toMMDDYYYY(formData.date);
+    // Column index helpers
+    const idx = (name) =>
+        headers.findIndex((h) => normalizeHeader(h) === name.toLowerCase());
+
+    const colTracking = idx("tracking_number");
+    const colGroup = idx("group_no");
+    const colDesc = idx("description");
+    const colHTS = idx("harmonization_code");
+    const colValue = idx("total_value");
+    const colMfgName = idx("manufacture_name");
+    const colMfgAddr = idx("manufacture_address");
+    const colMfgCity = idx("manufacture_city");
+    const colMfgZip = idx("manufacture_zip_code");
+    const colMfgCountry = idx("manufacture_country");
+    const colQty = idx("quantity");
+
+    // Prepare user inputs
     const portCode = (formData.portCode || "").trim();
-    const arrivalAirport = portCode; // same for all as you requested
-    const locationOfGoods = LOCATION_MAP[arrivalAirport?.trim()] || ""; // derived
+    const locationOfGoods = LOCATION_MAP[portCode] || "";
+    const formattedDate = toMMDDYYYY(formData.date);
 
-    const uploadRows = [];
+    // Build output rows
+    const out = [];
 
-    for (let i = 0; i < itemRows.length; i++) {
-        const r = itemRows[i];
-        const groupId = Math.floor(i / 998) + 1;
-
-        // Start an empty row with all headers
+    for (let i = 0; i < dataRows.length; i++) {
+        const r = dataRows[i];
         const newRow = Object.fromEntries(HEADERS.map((h) => [h, ""]));
 
-        // Hardcodes
+        // Hardcoded fields
         Object.assign(newRow, HARDCODE);
 
-        // Derived / combine / input
-        newRow.GroupIdentifier = groupId;
-        newRow.DescOfMerchandise = r[colCommodity];
-        newRow.Description = r[colCommodity];
+        // Manifest‑driven fields
+        newRow.GroupIdentifier = r[colGroup];
+        newRow.InvoiceNumber = r[colTracking];
+
+        const desc = r[colDesc];
+        newRow.DescOfMerchandise = desc;
+        newRow.Description = desc;
+
         newRow.HTS = r[colHTS];
-        newRow.HTSQty = r[colQTY];
-        newRow["Manifest Qty Piece count"] = r[colQTY];
+        newRow.HTSValue = parseFloat(r[colValue]) || 0;
+        newRow.HTSQty = r[colQty];
+        newRow["Manifest Qty Piece count"] = r[colQty];
 
-        // HTSValue with floor rule
-        newRow.HTSValue = parseFloat(r[colSubtotal]) || 0;
-
-        newRow.InvoiceNumber = invoiceNumber;
-
-        const manufNameRaw = r[colManufName];
-
-        // Try to match a code
-        const matchedCode = getManufacturerCode(manufNameRaw);
-
-        if (matchedCode) {
-            // Only fill ManufacturerCode, blank the rest
-            newRow.ManufacturerCode = matchedCode;
+        // Manufacturer logic
+        const rawName = r[colMfgName];
+        const code = getManufacturerCode(rawName);
+        if (code) {
+            newRow.ManufacturerCode = code;
             newRow.ManufacturerName = "";
             newRow.ManufacturerStreetAddress = "";
             newRow.ManufacturerCity = "";
             newRow.ManufacturerCountry = "";
             newRow.ManufacturerPostalCode = "";
         } else {
-            // Original behavior
-            newRow.ManufacturerName = manufNameRaw;
-            newRow.ManufacturerStreetAddress = r[colManufAddr];
-            newRow.ManufacturerCity = r[colManufCity];
-            newRow.ManufacturerCountry = r[colManufCountry];
-            newRow.ManufacturerPostalCode = r[colManufPostal];
+            newRow.ManufacturerName = rawName;
+            newRow.ManufacturerStreetAddress = r[colMfgAddr];
+            newRow.ManufacturerCity = r[colMfgCity];
+            newRow.ManufacturerCountry = r[colMfgCountry];
+            newRow.ManufacturerPostalCode = r[colMfgZip];
         }
+        newRow.ManufacturerProvince = "";
 
-        newRow["Airline 3 digit code"] = airlineCode;
-        newRow["Master Bill Number"] = masterBillNumber;
-        newRow["House AWB"] = formData.houseAWB || "";
-
-        // Dates
-        newRow["Arrival Date"] = formattedDate;
-        newRow["Date of Export"] = formattedDate;
-        newRow.EntryDate = formattedDate;
-        newRow.ImportDate = formattedDate;
-
-        // Ports / etc from user
+        // User‑provided and derived fields
         newRow.UnladingPort = portCode;
+        newRow["Arrival Airport"] = portCode;
         newRow["Remote Port"] = portCode;
+        newRow["Location of Goods"] = locationOfGoods;
         newRow["STATE OF DESTINATION"] = formData.destinationState || "";
         newRow["Carrier Code"] = formData.carrierCode || "";
         newRow["Voyage Flight No"] = formData.voyageFlightNo || "";
-        newRow["Arrival Airport"] = arrivalAirport;
-        newRow["Location of Goods"] = locationOfGoods;
+        newRow["House AWB"] = formData.houseAWB || "";
 
-        // Countries
-        const origin = r[colCountryOrigin];
-        newRow["Country Of Origin"] = origin;
-        newRow["Country of Export"] = origin;
+        newRow.EntryDate = formattedDate;
+        newRow.ImportDate = formattedDate;
+        newRow["Arrival Date"] = formattedDate;
+        newRow["Date of Export"] = formattedDate;
 
-        // Unit already hardcoded
-        // Selling fields already hardcoded
-        // Preparer Port already hardcoded
+        newRow["Airline 3 digit code"] = formData.airlineCode || "";
+        newRow["Master Bill Number"] = formData.masterBillNumber || "";
 
-        uploadRows.push(newRow);
+        out.push(newRow);
     }
 
-    // Build workbook
-    const sheet = xlsx.utils.json_to_sheet(uploadRows, { header: HEADERS });
-    const wb = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(wb, sheet, "Sheet1");
-    const buffer = xlsx.write(wb, { type: "buffer", bookType: "xlsx" });
+    // Generate workbook
+    const sheetOut = xlsx.utils.json_to_sheet(out, { header: HEADERS });
+    const wbOut = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(wbOut, sheetOut, "Sheet1");
+    const buffer = xlsx.write(wbOut, { type: "buffer", bookType: "xlsx" });
 
-    return { buffer, airlineCode, masterBillNumber };
+    return { buffer };
 }
 
 module.exports = { convertTemuExcel };
