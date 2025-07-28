@@ -265,6 +265,7 @@ async function convertTemuExcel(manifestBuffer, formData) {
     const colMfgZip = idx("manufacture_zip_code");
     const colMfgCountry = idx("manufacture_country");
     const colQty = idx("quantity");
+    const colCountryOrigin = idx("country_of_origin");
 
     // Prepare user inputs
     const portCode = (formData.portCode || "").trim();
@@ -293,6 +294,10 @@ async function convertTemuExcel(manifestBuffer, formData) {
         newRow.HTSValue = parseFloat(r[colValue]) || 0;
         newRow.HTSQty = r[colQty];
         newRow["Manifest Qty Piece count"] = r[colQty];
+
+        const origin = r[colCountryOrigin];
+        newRow["Country Of Origin"] = origin;
+        newRow["Country of Export"] = origin;
 
         // Manufacturer logic
         const rawName = r[colMfgName];
