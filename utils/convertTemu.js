@@ -297,6 +297,16 @@ async function convertTemuExcel(manifestBuffer, formData) {
 
     for (let i = 0; i < dataRows.length; i++) {
         const r = dataRows[i];
+
+        const originFlag = r[colCountryOrigin];
+        const trackingNumber = r[colTracking] || `at row ${i + 1}`;
+
+        if (!originFlag) {
+            throw new Error(
+                `Missing country_of_origin for tracking number: ${trackingNumber}`
+            );
+        }
+
         const newRow = Object.fromEntries(HEADERS.map((h) => [h, ""]));
 
         // Hardcoded fields
