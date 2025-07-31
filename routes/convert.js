@@ -32,7 +32,9 @@ router.post("/", async (req, res) => {
         res.send(buffer);
     } catch (err) {
         console.error("Conversion error:", err);
-        res.status(500).json({ error: "Failed to process file." });
+        res.status(500).json({
+            error: err.message || "Failed to process file.",
+        });
     }
 });
 module.exports = router;
