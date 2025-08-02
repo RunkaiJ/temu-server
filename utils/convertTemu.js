@@ -286,6 +286,7 @@ async function convertTemuExcel(manifestBuffer, formData) {
     const colMfgCountry = idx("manufacture_country");
     const colQty = idx("quantity");
     const colCountryOrigin = idx("country_of_origin");
+    const colPGAProductCode = idx("PGA_Product_Code");
 
     // Prepare user inputs
     const portCode = (formData.portCode || "").trim();
@@ -328,6 +329,7 @@ async function convertTemuExcel(manifestBuffer, formData) {
         const origin = r[colCountryOrigin];
         newRow["Country Of Origin"] = origin;
         newRow["Country of Export"] = origin;
+        newRow.FDAPRODUCTCODE = r[colPGAProductCode] || "";
 
         // Manufacturer logic
         const rawName = r[colMfgName];
