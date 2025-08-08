@@ -299,9 +299,9 @@ async function convertTemuExcel(manifestBuffer, formData) {
     const colCountryOrigin = idx("country_of_origin");
 
     // pull PGA/FDA mapping columns from source
-    const colPGAProductCode = idx("PGA_Product_Code"); 
-    const colProcessingCode = idx("processing_code"); 
-    const colProgramCode = idx("program_code"); 
+    const colPGAProductCode = idx("PGA_Product_Code");
+    const colProcessingCode = idx("processing_code");
+    const colProgramCode = idx("program_code");
 
     // Prepare user inputs
     const portCode = (formData.portCode || "").trim();
@@ -411,7 +411,13 @@ async function convertTemuExcel(manifestBuffer, formData) {
     const sheetOut = xlsx.utils.json_to_sheet(out, { header: HEADERS });
     const wbOut = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wbOut, sheetOut, "Sheet1");
-    const buffer = xlsx.write(wbOut, { type: "buffer", bookType: "xlsx" });
+    // const buffer = xlsx.write(wbOut, { type: "buffer", bookType: "xlsx" });
+    const buffer = xlsx.write(wbOut, {
+        type: "buffer",
+        bookType: "xlsx",
+        bookSST: true, // build a shared string table (smaller files)
+        compression: true, // zip compression on the XLSX
+    });
 
     return { buffer };
 }
