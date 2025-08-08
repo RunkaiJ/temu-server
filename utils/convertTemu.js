@@ -92,6 +92,8 @@ const RAW_MANUF_CODES = [
         "MOUDING COUNTY KUNI DEPARTMENT STORE SOLE PROPRIETORSHIP",
         "CNMOUCOU2744CHU",
     ],
+    ["SHANDONGTAHAIWANGLUOKEJI CO.LTD.", "CNPANJIN202JIN"],
+    ["GUANGZHOUHUIWANGDIANZISHANGWUCO..LTD", "CNTAICOL413TAI"],
 ];
 
 const keyName = (s = "") =>
@@ -295,7 +297,11 @@ async function convertTemuExcel(manifestBuffer, formData) {
     const colMfgCountry = idx("manufacture_country");
     const colQty = idx("quantity");
     const colCountryOrigin = idx("country_of_origin");
-    const colPGAProductCode = idx("PGA_Product_Code");
+
+    // pull PGA/FDA mapping columns from source
+    const colPGAProductCode = idx("PGA_Product_Code"); 
+    const colProcessingCode = idx("processing_code"); 
+    const colProgramCode = idx("program_code"); 
 
     // Prepare user inputs
     const portCode = (formData.portCode || "").trim();
@@ -322,7 +328,7 @@ async function convertTemuExcel(manifestBuffer, formData) {
         // Hardcoded fields
         Object.assign(newRow, HARDCODE);
 
-        // Manifest‑driven fields
+        // Manifest-driven fields
         newRow.GroupIdentifier = r[colGroup];
         newRow.InvoiceNumber = r[colTracking];
 
@@ -338,7 +344,28 @@ async function convertTemuExcel(manifestBuffer, formData) {
         const origin = r[colCountryOrigin];
         newRow["Country Of Origin"] = origin;
         newRow["Country of Export"] = origin;
-        newRow.FDAPRODUCTCODE = r[colPGAProductCode] || "";
+
+        // map PGA columns to FDA columns
+        const pgaProduct =
+            (colPGAProductCode >= 0 ? r[colPGAProductCode] : "")
+                ?.toString()
+                .trim() || "";
+        const processingCode =
+            (colProcessingCode >= 0 ? r[colProcessingCode] : "")
+                ?.toString()
+                .trim() || "";
+        const programCode =
+            (colProgramCode >= 0 ? r[colProgramCode] : "")?.toString().trim() ||
+            "";
+
+        newRow.FDAPRODUCTCODE = pgaProduct;
+        newRow.FDAPROCESSINGCODE = processingCode;
+        newRow.FDAPROGRAMCODE = programCode;
+
+        //  set intended use when all three exist
+        if (pgaProduct && processingCode && programCode) {
+            newRow.FDAINTENDEDUSECODE = 130.029;
+        }
 
         // Manufacturer logic
         const rawName = r[colMfgName];
@@ -359,7 +386,7 @@ async function convertTemuExcel(manifestBuffer, formData) {
         }
         newRow.ManufacturerProvince = "";
 
-        // User‑provided and derived fields
+        // User-provided and derived fields
         newRow.UnladingPort = portCode;
         newRow["Arrival Airport"] = portCode;
         newRow["Remote Port"] = portCode;
