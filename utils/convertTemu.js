@@ -94,6 +94,10 @@ const RAW_MANUF_CODES = [
     ],
     ["SHANDONGTAHAIWANGLUOKEJI CO.LTD.", "CNSHACOL1595RIZ"],
     ["GUANGZHOUHUIWANGDIANZISHANGWUCO..LTD", "CNGUA850DON"],
+    ["Xingcheng Kaisheng Garment Co., Ltd.", "CNKAIGARXIN"],
+    ["Xingcheng Kaiwei Garment Co., Ltd.", "CNXINKAI6543HUL"],
+    ["Xingcheng Kairuida Garment Co", "CNKAIGARHUL"],
+
 ];
 
 
