@@ -113,6 +113,7 @@ const RAW_MANUF_CODES = [
     ["Shantou Buyun Clothing Co., Ltd.", "CNBUYCLOSHA"],
     ["Dongguan Dingyangfeng Fashion Co., Ltd.", "CNDINFAS501DON"],
     ["Xingcheng Kairuida Garment Co., Ltd.", "CNXINKAI1HUL"],
+    ["Shantou Buyun Clothing Co., Ltd.", "CNBUYCLOSHA"]
 ];
 
 const keyName = (s = "") =>
