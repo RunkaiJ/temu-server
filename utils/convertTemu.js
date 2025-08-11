@@ -97,9 +97,23 @@ const RAW_MANUF_CODES = [
     ["Xingcheng Kaisheng Garment Co., Ltd.", "CNKAIGARXIN"],
     ["Xingcheng Kaiwei Garment Co., Ltd.", "CNXINKAI6543HUL"],
     ["Xingcheng Kairuida Garment Co", "CNKAIGARHUL"],
-
+    ["Dongguan Shanjia Clothing Co., Ltd.", "CNDONSHA800DON"],
+    ["Yiwu Qiangkuang E-commerce Store (Individual Business)", "CNQIAECO2JIN"],
+    ["DONGMING CO.LTD", "CNDONCOL364FUZ"],
+    ["Baoding Chenchuang Trading Co., Ltd.", "CNCHECHUBAO"],
+    ["Taizhou Borui Industry and Trade Co., Ltd.", "CNTAIINDTAI"],
+    ["Zhuji Jiuzhi Textile Factory", "CNZHUJIU99SHA"],
+    [
+        "Baigou New Town Yaohuo Bags Factory (individual business owner)",
+        "CNBAINEW297BAO",
+    ],
+    ["Xinyu Zulu Shoes Co., Ltd.", "CNXINZUL1819XIN"],
+    ["Suzhou Tianbianyou Culture Media Co., Ltd.", "CNSUZTIA4555SUZ"],
+    ["Nan'an Meishan Hesheng Knitting Factory", "CNMEIHESQUA"],
+    ["Shantou Buyun Clothing Co., Ltd.", "CNBUYCLOSHA"],
+    ["Dongguan Dingyangfeng Fashion Co., Ltd.", "CNDINFAS501DON"],
+    ["Xingcheng Kairuida Garment Co., Ltd.", "CNXINKAI1HUL"],
 ];
-
 
 const keyName = (s = "") =>
     s
